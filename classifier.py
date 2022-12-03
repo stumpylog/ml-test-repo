@@ -1,13 +1,8 @@
-import logging
 import pickle
 import re
 from pathlib import Path
 from typing import List
-from typing import Optional
 
-from nltk.corpus import stopwords
-from nltk.stem import SnowballStemmer
-from nltk.tokenize import word_tokenize
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.neural_network import MLPClassifier
 from sklearn.preprocessing import MultiLabelBinarizer, LabelBinarizer
@@ -15,22 +10,15 @@ from sklearn.utils.multiclass import type_of_target
 
 from data import Paper
 
-logger = logging.getLogger("paperless.classifier")
 
-
-class NltkDocumentClassifier:
+class OriginalDocumentClassifier:
 
     def __init__(self):
-        # hash of the training data. used to prevent re-training when the
-        # training data has not changed.
-        self.data_hash: Optional[bytes] = None
 
         self.data_vectorizer = None
         self.tags_binarizer = None
         self.tags_classifier = None
 
-        self.stemmer = SnowballStemmer("english")
-        self.stops = set(stopwords.words("english"))
         self.save_path = Path("new.dat")
 
     def train(self, papers: List[Paper]):
@@ -39,7 +27,7 @@ class NltkDocumentClassifier:
         labels_tags = []
 
         # Step 1: Extract and preprocess training data from the database.
-        logger.debug("Gathering data from database...")
+        print("Gathering data from database...")
 
         for paper in papers:
             content = paper.title + " " + paper.abstract
@@ -57,7 +45,7 @@ class NltkDocumentClassifier:
         num_tags = len(labels_tags_unique)
 
         # Step 2: vectorize data
-        logger.debug("Vectorizing data...")
+        print("Vectorizing data...")
         self.data_vectorizer = CountVectorizer(
             analyzer="word",
             ngram_range=(1, 2),
@@ -72,7 +60,7 @@ class NltkDocumentClassifier:
 
         # Step 3: train the classifiers
         if num_tags > 0:
-            logger.debug("Training tags classifier...")
+            print("Training tags classifier...")
 
             if num_tags == 1:
                 # Special case where only one tag has auto:
@@ -92,28 +80,19 @@ class NltkDocumentClassifier:
             self.tags_classifier.fit(data_vectorized, labels_tags_vectorized)
         else:
             self.tags_classifier = None
-            logger.debug("There are no tags. Not training tags classifier.")
+            print("There are no tags. Not training tags classifier.")
 
         return True
 
     def preprocess_content(self, content: str) -> str:
-        """
-        Process to contents of a document, distilling it down into
-        words which are meaningful to the content
-        """
         # Lower case the document
         content = content.lower().strip()
-        # Get only the letters (remove punctuation too)
+        # Reduce spaces
+        content = re.sub(r"\s+", " ", content)
+        # Get only the letters
         content = re.sub(r"[^\w\s]", " ", content)
-        # Tokenize
-        words: List[str] = word_tokenize(content, language="english")
-        # Remove stop words
 
-        meaningful_words = [w for w in words if w not in self.stops]
-        # Stem words
-        meaningful_words = [self.stemmer.stem(w) for w in meaningful_words]
-
-        return " ".join(meaningful_words)
+        return content
 
     def save(self):
         with self.save_path.open("wb") as outfile:
@@ -148,20 +127,3 @@ class NltkDocumentClassifier:
                 return []
         else:
             return []
-
-
-class OriginalDocumentClassifier(NltkDocumentClassifier):
-
-    def __init__(self):
-        super().__init__()
-        self.save_path = Path("original.dat")
-
-    def preprocess_content(self, content: str) -> str:
-        # Lower case the document
-        content = content.lower().strip()
-        # Reduce spaces
-        content = re.sub(r"\s+", " ", content)
-        # Get only the letters
-        content = re.sub(r"[^\w\s]", " ", content)
-
-        return content

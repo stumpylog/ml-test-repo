@@ -3,15 +3,16 @@ url = "https://pypi.org/simple"
 verify_ssl = true
 name = "pypi"
 
+[[source]]
+url = "https://www.piwheels.org/simple"
+verify_ssl = true
+name = "piwheels"
+
 [packages]
-requests = "*"
-nltk = "*"
-scikit-learn = "*"
+# Last version built on piwheels
+scipy= "==1.8.1"
+scikit-learn = "~=1.1"
 pandas = "*"
-humanfriendly = "*"
-psutil = "*"
 
 [dev-packages]
 
-[requires]
-python_version = "3.10"
